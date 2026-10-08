@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ระบบสืบค้นตารางคุมสอบ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F5F3EC;
+    --surface: #FFFFFF;
+    --ink: #1E2733;
+    --ink-soft: #4A5566;
+    --navy: #1F3B5C;
+    --navy-deep: #16293F;
+    --line: #DDD7C7;
+    --gold: #A9791F;
+    --gold-soft: #F1E4C4;
+    --danger: #9C3B3B;
+    --grid: #E9E4D6;
+    --radius: 10px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --paper: #14181D;
+      --surface: #1C2229;
+      --ink: #E8E6DE;
+      --ink-soft: #A9B0B9;
+      --navy: #7FA6D6;
+      --navy-deep: #9FC0E6;
+      --line: #333B44;
+      --gold: #D9B25C;
+      --gold-soft: #33301F;
+      --danger: #D98080;
+      --grid: #2A313A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14181D;
+    --surface: #1C2229;
+    --ink: #E8E6DE;
+    --ink-soft: #A9B0B9;
+    --navy: #7FA6D6;
+    --navy-deep: #9FC0E6;
+    --line: #333B44;
+    --gold: #D9B25C;
+    --gold-soft: #33301F;
+    --danger: #D98080;
+    --grid: #2A313A;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Sans Thai', 'Tahoma', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  h1, h2, h3, .serif { font-family: 'Noto Serif Thai', serif; }
+
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px 16px 48px;
+  }
+
+  header.top {
+    padding: 4px 2px 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  header.top h1 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--navy-deep);
+    margin: 0 0 4px;
+    letter-spacing: 0.2px;
+  }
+  header.top p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+
+  .search-box {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .search-input {
+    width: 100%;
+    padding: 13px 44px 13px 16px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  .search-input:focus { border-color: var(--navy); }
+  .search-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-soft);
+    pointer-events: none;
+    font-size: 1.05rem;
+  }
+
+  .suggestions {
+    margin-top: 6px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: none;
+  }
+  .suggestions.open { display: block; }
+  .sugg-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 11px 14px;
+    border: none;
+    background: none;
+    font: inherit;
+    color: var(--ink);
+    cursor: pointer;
+    border-bottom: 1px solid var(--line);
+  }
+  .sugg-item:last-child { border-bottom: none; }
+  .sugg-item:active, .sugg-item:hover { background: var(--gold-soft); }
+  .sugg-name { font-size: 0.95rem; }
+  .sugg-count {
+    flex: none;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .sugg-empty {
+    padding: 14px;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .chip {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1.5px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: #fff;
+  }
+  :root[data-theme="dark"] .chip.active, .chip.active { color: #fff; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .chip.active { color: var(--navy-deep); background: var(--navy); }
+  }
+
+  .person-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .person-card h2 {
+    margin: 0 0 6px;
+    font-size: 1.15rem;
+    color: var(--navy-deep);
+  }
+  .person-card .stat {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+  }
+  .person-card .stat b { color: var(--ink); font-size: 1rem; }
+  .clear-link {
+    background: none;
+    border: none;
+    color: var(--navy);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 10px;
+    display: inline-block;
+  }
+
+  .section-label {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin: 4px 0 8px;
+  }
+
+  .date-group { margin-bottom: 14px; }
+  .date-head {
+    font-family: 'Noto Serif Thai', serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--navy-deep);
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
+
+  .duty-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .duty-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .duty-course {
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 0.98rem;
+  }
+  .duty-date { font-weight: 700; color: var(--ink); font-size: 0.98rem; }
+  .duty-line { padding: 4px 0; }
+  .duty-line .duty-course { font-size: 0.9rem; }
+  .duty-time {
+    font-size: 0.82rem;
+    color: var(--gold);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .duty-meta {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .duty-meta span b { color: var(--ink); font-weight: 600; }
+  .duty-co {
+    margin-top: 6px;
+    font-size: 0.83rem;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--line);
+    padding-top: 6px;
+  }
+  .cat-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--gold-soft);
+    color: var(--gold);
+    font-weight: 600;
+    margin-left: 6px;
+  }
+
+  .all-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  table.all {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 620px;
+    font-size: 0.85rem;
+  }
+  table.all th {
+    background: var(--navy);
+    color: #fff;
+    text-align: left;
+    padding: 10px 10px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    border-right: 1px solid rgba(255,255,255,0.18);
+  }
+  table.all th:last-child { border-right: none; }
+  table.all td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--grid);
+    border-right: 1px solid var(--grid);
+    color: var(--ink);
+    vertical-align: top;
+  }
+  table.all td:last-child { border-right: none; }
+  table.all tr:last-child td { border-bottom: none; }
+  table.all tr.new-date td { border-top: 2px solid var(--gold); }
+  .nowrap { white-space: nowrap; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ink-soft);
+  }
+
+  .matrix-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  table.matrix {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 760px;
+    font-size: 0.82rem;
+  }
+  table.matrix th {
+    background: var(--navy);
+    color: #fff;
+    text-align: center;
+    padding: 8px 6px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+    border-right: 1px solid rgba(255,255,255,0.18);
+  }
+  table.matrix th:last-child { border-right: none; }
+  table.matrix th.name-col, table.matrix td.name-col {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background: var(--navy);
+    z-index: 2;
+  }
+  table.matrix td.name-col {
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 500;
+    cursor: pointer;
+    border-right: 1px solid var(--grid);
+  }
+  table.matrix td.name-col:hover { background: var(--gold-soft); }
+  table.matrix td {
+    padding: 8px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--grid);
+    border-right: 1px solid var(--grid);
+    color: var(--ink-soft);
+  }
+  table.matrix td:last-child { border-right: none; }
+  table.matrix tr:last-child td { border-bottom: none; }
+  table.matrix td.busy {
+    color: var(--gold);
+    font-weight: 700;
+    background: var(--gold-soft);
+  }
+  table.matrix td.free {
+    background: #EEF4EC;
+  }
+  :root[data-theme="dark"] table.matrix td.free { background: #1E2A20; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) table.matrix td.free { background: #1E2A20; }
+  }
+  table.matrix td.total-col {
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .matrix-hint {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    margin: 8px 2px 0;
+  }
+
+  .data-status { margin-top: 6px; font-size: 0.74rem; opacity: .85; }
+  footer.note {
+    margin-top: 24px;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>ระบบสืบค้นตารางคุมสอบ</h1>
+    <p>ภาควิชาวิทยาการคอมพิวเตอร์ · ปลายภาค ภาคการศึกษาที่ 1/2569</p>
+  </header>
+
+  <div class="search-box">
+    <input id="searchInput" class="search-input" type="text" inputmode="search"
+      placeholder="ค้นหาชื่อของคุณ เช่น กมลภพ, ถนอม, วราภรณ์…" autocomplete="off">
+    <span class="search-icon">⌕</span>
+    <div id="suggestions" class="suggestions"></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="chip active" id="tabAll" type="button">ดูทั้งหมด</button>
+    <button class="chip" id="tabAvail" type="button">สรุปภาพรวม</button>
+    <button class="chip" id="tabMine" type="button" disabled>ตารางของฉัน</button>
+  </div>
+
+  <div id="personView" style="display:none;"></div>
+  <div id="allView"></div>
+  <div id="availView" style="display:none;"></div>
+
+  <footer class="note">
+    พิมพ์ชื่อเพื่อค้นหา แล้วแตะรายชื่อที่ต้องการ ระบบจะจำการค้นหาล่าสุดของคุณไว้ในเครื่องนี้
+    <div id="dataStatus" class="data-status"></div>
+  </footer>
+</div>
+
+<script>
+const CONFIG = {
+  // วาง URL ของ Google Apps Script Web App ที่ได้หลัง Deploy (ลงท้ายด้วย /exec) ถ้าเว้นว่างจะใช้ข้อมูลสำรองที่ฝังไว้
+  API_URL: 'https://script.google.com/macros/s/AKfycbw64FMQ6qS46IQM6U6qY8oimn5VPkHbKM0x-QsiwpTEHdrGRRHcrz2tWqAzya-Hh8B9/exec',
+  CACHE_KEY: 'examDataCacheV1'
+};
+
+// ข้อมูลสำรอง (snapshot) ใช้เมื่อยังไม่ได้เชื่อม Google Sheet หรือเชื่อมต่อไม่ได้
+const SNAPSHOT = {"schedule": [{"date": "จันทร์ 19 ต.ค. 69", "time": "12.00 – 15.00", "course": "001101", "room": "ประกาศคณะมนุษยศาสตร์", "section": "", "n": "", "invig": "ณิชาภา, ถนอม, สุทธิพงศ์", "cat": "นอกภาควิชา (กระบวนวิชาภาษาอังกฤษ)"}, {"date": "จันทร์ 19 ต.ค. 69", "time": "15.30 – 18.30", "course": "001201", "room": "ประกาศคณะมนุษยศาสตร์", "section": "", "n": "", "invig": "ณิชาภา, ถนอม, ป้องภพ", "cat": "นอกภาควิชา (กระบวนวิชาภาษาอังกฤษ)"}, {"date": "อังคาร 20 ต.ค. 69", "time": "08.00 – 11.00", "course": "204102", "room": "CSB209", "section": "001", "n": "45", "invig": "เบญจมาศ, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "อังคาร 20 ต.ค. 69", "time": "08.00 – 11.00", "course": "204102", "room": "CSB100", "section": "002", "n": "64", "invig": "ดุษฎี, ถนอม", "cat": "ภายในภาควิชา"}, {"date": "อังคาร 20 ต.ค. 69", "time": "08.00 – 11.00", "course": "204102", "room": "CSB207", "section": "003", "n": "42", "invig": "จีรยุทธ, สุทธิพงศ์", "cat": "ภายในภาควิชา"}, {"date": "อังคาร 20 ต.ค. 69", "time": "08.00 – 11.00", "course": "204102", "room": "CSB100", "section": "003", "n": "10", "invig": "ดุษฎี, ถนอม", "cat": "ภายในภาควิชา"}, {"date": "อังคาร 20 ต.ค. 69", "time": "08.00 – 11.00", "course": "204102", "room": "CSB210", "section": "004", "n": "45", "invig": "เมทินี, วราภรณ์", "cat": "ภายในภาควิชา"}, {"date": "อังคาร 20 ต.ค. 69", "time": "08.00 – 11.00", "course": "204102", "room": "CSB201", "section": "701", "n": "21", "invig": "ประภาพร, ป้องภพ", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "12.00 – 15.00", "course": "204252", "room": "CSB100", "section": "001", "n": "39", "invig": "ฐาปนพงษ์, จักริน", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "12.00 – 15.00", "course": "204252", "room": "CSB100", "section": "002", "n": "40", "invig": "ฐาปนพงษ์, จักริน", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "12.00 – 15.00", "course": "204361", "room": "CSB209", "section": "001", "n": "30", "invig": "กมลภพ, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "12.00 – 15.00", "course": "204361", "room": "CSB210", "section": "002", "n": "23", "invig": "รัฐสิทธิ์, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "15.30 – 18.30", "course": "204100", "room": "Online", "section": "001", "n": "588", "invig": "กมลภพ, ฐาปนพงษ์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "15.30 – 18.30", "course": "204100", "room": "Online", "section": "501", "n": "27", "invig": "กมลภพ, ฐาปนพงษ์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "15.30 – 18.30", "course": "204100", "room": "Online", "section": "002", "n": "587", "invig": "ฐาปนพงษ์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "15.30 – 18.30", "course": "204100", "room": "Online", "section": "003", "n": "592", "invig": "ประภาพร", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "15.30 – 18.30", "course": "204100", "room": "Online", "section": "701", "n": "358", "invig": "วัชราภรณ์, กมลภพ", "cat": "ภายในภาควิชา"}, {"date": "พุธ 21 ต.ค. 69", "time": "15.30 – 18.30", "course": "204100", "room": "Online", "section": "801", "n": "275", "invig": "ประภาพร, กมลภพ, ฐาปนพงษ์, วัชราภรณ์", "cat": "ภายในภาควิชา"}, {"date": "พฤหัสบดี 22 ต.ค. 69", "time": "12.00 – 15.00", "course": "204341", "room": "CSB100", "section": "001", "n": "14", "invig": "วาริน, วรวุฒิ", "cat": "ภายในภาควิชา"}, {"date": "พฤหัสบดี 22 ต.ค. 69", "time": "12.00 – 15.00", "course": "204341", "room": "CSB100", "section": "002", "n": "34", "invig": "วรวุฒิ, วาริน", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 25 ต.ค. 69", "time": "08.00 – 11.00", "course": "204251", "room": "CSB301", "section": "701", "n": "43", "invig": "สิทธิโชค, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 25 ต.ค. 69", "time": "08.00 – 11.00", "course": "204251", "room": "CSB307", "section": "702", "n": "31", "invig": "คึกฤทธิ์, ถนอม", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 25 ต.ค. 69", "time": "08.00 – 11.00", "course": "204383", "room": "CSB207", "section": "001", "n": "40", "invig": "วาริน, สุทธิพงศ์", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 25 ต.ค. 69", "time": "08.00 – 11.00", "course": "204383", "room": "CSB203", "section": "001", "n": "20", "invig": "วราภรณ์, ป้องภพ", "cat": "ภายในภาควิชา"}, {"date": "จันทร์ 26 ต.ค. 69", "time": "08.00 – 11.00", "course": "204123", "room": "CSB209", "section": "001", "n": "21", "invig": "ปภังกร, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "จันทร์ 26 ต.ค. 69", "time": "08.00 – 11.00", "course": "204335", "room": "CSB201", "section": "001", "n": "20", "invig": "ศุภกิจ, ป้องภพ", "cat": "ภายในภาควิชา"}, {"date": "จันทร์ 26 ต.ค. 69", "time": "08.00 – 11.00", "course": "204471", "room": "CSB210", "section": "001", "n": "42", "invig": "ปราการ, สุทธิพงศ์", "cat": "ภายในภาควิชา"}, {"date": "จันทร์ 26 ต.ค. 69", "time": "08.00 – 11.00", "course": "229323", "room": "CSB100", "section": "001", "n": "29", "invig": "เสมอแข, เมทินี", "cat": "ภายในภาควิชา"}, {"date": "จันทร์ 26 ต.ค. 69", "time": "08.00 – 11.00", "course": "229323", "room": "CSB100", "section": "002", "n": "24", "invig": "เมทินี, เสมอแข", "cat": "ภายในภาควิชา"}, {"date": "จันทร์ 26 ต.ค. 69", "time": "15.30 – 18.30", "course": "204453", "room": "CSB209", "section": "001", "n": "35", "invig": "ชุมพล, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "12.00 – 15.00", "course": "204231", "room": "CSB100", "section": "001", "n": "42", "invig": "ชุมพล, วัฒนา", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "12.00 – 15.00", "course": "204231", "room": "CSB100", "section": "002", "n": "41", "invig": "วัฒนา, ชุมพล", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "12.00 – 15.00", "course": "204325", "room": "CSB210", "section": "001", "n": "13", "invig": "อารีรัตน์, ศุภกิจ", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "12.00 – 15.00", "course": "204371", "room": "CSB209", "section": "001", "n": "42", "invig": "ปภังกร, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "12.00 – 15.00", "course": "204432", "room": "CSB210", "section": "001", "n": "21", "invig": "ศุภกิจ, อารีรัตน์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB210", "section": "001", "n": "33", "invig": "วาสนา, วราภรณ์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB209", "section": "002", "n": "48", "invig": "สุธาสินี, สุทธิพงศ์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB100", "section": "003", "n": "58", "invig": "วัฒนา, ป้องภพ", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB207", "section": "004", "n": "11", "invig": "นพรัตน์, วัชราภรณ์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB207", "section": "005", "n": "3", "invig": "วัชราภรณ์, นพรัตน์", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB301", "section": "701", "n": "62", "invig": "ปราการ, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB303", "section": "702", "n": "44", "invig": "คึกฤทธิ์, อริษา", "cat": "ภายในภาควิชา"}, {"date": "พุธ 28 ต.ค. 69", "time": "15.30 – 18.30", "course": "204101", "room": "CSB307", "section": "703", "n": "38", "invig": "สิทธิโชค, ถนอม", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204171", "room": "CSB100", "section": "001", "n": "97", "invig": "กรพรหม, ป้องภพ", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204171", "room": "CSB209", "section": "001", "n": "50", "invig": "เอกรัฐ, วัฒนา, วราภรณ์", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204171", "room": "CSB207", "section": "701", "n": "35", "invig": "เอกรัฐ, วัฒนา, วราภรณ์", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204203", "room": "CSB307", "section": "001", "n": "39", "invig": "รัศมีทิพย์, ถนอม", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204203", "room": "CSB301", "section": "002", "n": "40", "invig": "กิตติพิชญ์, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204217", "room": "CSB308", "section": "001", "n": "40", "invig": "สุธาสินี, วาสนา, สุทธิพงศ์", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204217", "room": "CSB303", "section": "002", "n": "18", "invig": "สุธาสินี, วาสนา, สุทธิพงศ์", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204321", "room": "CSB201", "section": "001", "n": "30", "invig": "อารีรัตน์, พัฒน์พงษ์", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204321", "room": "CSB202", "section": "002", "n": "24", "invig": "วิจักษณ์, ณัฐศิธธาอัญญ์", "cat": "ภายในภาควิชา"}, {"date": "เสาร์ 31 ต.ค. 69", "time": "15.30 – 18.30", "course": "204426", "room": "CSB210", "section": "001", "n": "44", "invig": "นพรัตน์, อริษา", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 1 พ.ย. 69", "time": "15.30 – 19.30", "course": "204111", "room": "CSB303", "section": "001", "n": "39", "invig": "จักรเมธ, พัฒน์พงษ์", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 1 พ.ย. 69", "time": "15.30 – 19.30", "course": "204111", "room": "CSB307", "section": "002", "n": "37", "invig": "เสมอแข, ถนอม", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 1 พ.ย. 69", "time": "15.30 – 19.30", "course": "204111", "room": "CSB301", "section": "003", "n": "38", "invig": "กิตติพิชญ์, ณิชาภา", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 1 พ.ย. 69", "time": "15.30 – 18.30", "course": "204320", "room": "CSB209", "section": "001", "n": "45", "invig": "วิจักษณ์, ป้องภพ", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 1 พ.ย. 69", "time": "15.30 – 18.30", "course": "204451", "room": "CSB100", "section": "001", "n": "29", "invig": "เบญจมาศ, จีรยุทธ", "cat": "ภายในภาควิชา"}, {"date": "อาทิตย์ 1 พ.ย. 69", "time": "15.30 – 18.30", "course": "204451", "room": "CSB100", "section": "002", "n": "27", "invig": "จีรยุทธ, เบญจมาศ", "cat": "ภายในภาควิชา"}], "people": [{"key": "รัศมีทิพย์", "title": "ผศ.ดร.", "name": "รัศมีทิพย์ วิตา"}, {"key": "กมลภพ", "title": "อ.ดร.", "name": "กมลภพ ศรีโสภา"}, {"key": "กรพรหม", "title": "ผศ.ดร.", "name": "กรพรหม พิกุลแก้ว"}, {"key": "กิตติพิชญ์", "title": "อ.", "name": "กิตติพิชญ์ คุปตะวาณิช"}, {"key": "คึกฤทธิ์", "title": "ผศ.ดร.", "name": "คึกฤทธิ์ โอสถานันต์กุล"}, {"key": "จักรเมธ", "title": "รศ.ดร.", "name": "จักรเมธ บุตรกระจ่าง"}, {"key": "จักริน", "title": "ผศ.ดร.", "name": "จักริน ชวชาติ"}, {"key": "จีรยุทธ", "title": "รศ.ดร", "name": "จีรยุทธ ไชยจารุวณิช"}, {"key": "ชุมพล", "title": "รศ.ดร.", "name": "ชุมพล บุญคุ้มพรภัทร"}, {"key": "ฐาปนพงษ์", "title": "ผศ.ดร.", "name": "ฐาปนพงษ์ รักกาญจนันท์"}, {"key": "ดุษฎี", "title": "ผศ.ดร.", "name": "ดุษฎี ประเสริฐธิติพงษ์"}, {"key": "นพรัตน์", "title": "อ.ดร.", "name": "นพรัตน์ วนิชชานันท์"}, {"key": "เบญจมาศ", "title": "ผศ.", "name": "เบญจมาศ ปัญญางาม"}, {"key": "ปภังกร", "title": "ผศ.ดร.", "name": "ปภังกร อิ่นแก้ว"}, {"key": "ประภาพร", "title": "ผศ.ดร.", "name": "ประภาพร เตชอังกูร"}, {"key": "ปราการ", "title": "ผศ.ดร.", "name": "ปราการ อุณจักร"}, {"key": "เมทินี", "title": "ผศ.ดร.", "name": "เมทินี เขียวกันยะ"}, {"key": "รัฐสิทธิ์", "title": "รศ.ดร.", "name": "รัฐสิทธิ์ สุขะหุต"}, {"key": "วรวุฒิ", "title": "อ.ดร.", "name": "วรวุฒิ ศรีสุขคำ"}, {"key": "วัชราภรณ์", "title": "อ.ดร.", "name": "วัชราภรณ์ ยาใจ"}, {"key": "วัฒนา", "title": "รศ.ดร.", "name": "วัฒนา จินดาหลวง"}, {"key": "วาริน", "title": "รศ. ดร.", "name": "วาริน เชาวทัต"}, {"key": "วาสนา", "title": "ผศ.", "name": "วาสนา นัยโพธิ์"}, {"key": "วิจักษณ์", "title": "ผศ.ดร.", "name": "วิจักษณ์ ศรีสัจจะเลิศวาจา"}, {"key": "ศุภกิจ", "title": "ผศ.ดร.", "name": "ศุภกิจ อาวิพันธุ์"}, {"key": "สิทธิโชค", "title": "อ.", "name": "สิทธิโชค ทรัพย์ไพบูลย์กิจ"}, {"key": "สุธาสินี", "title": "อ.ดร.", "name": "สุธาสินี โทวุฒิกุล"}, {"key": "เสมอแข", "title": "ผศ.ดร.", "name": "เสมอแข สมหอม"}, {"key": "อารีรัตน์", "title": "ผศ.ดร.", "name": "อารีรัตน์ ตรงรัศมีทอง"}, {"key": "เอกรัฐ", "title": "รศ.ดร.", "name": "เอกรัฐ บุญเชียง"}, {"key": "ณิชาภา", "title": "นางสาว", "name": "ณิชาภา นิลละออ"}, {"key": "ถนอม", "title": "นาย", "name": "ถนอม กองใจ"}, {"key": "พัฒน์พงษ์", "title": "นาย", "name": "พัฒน์พงษ์ ศิริกุล"}, {"key": "สุทธิพงศ์", "title": "นาย", "name": "สุทธิพงศ์ สุรักษ์"}, {"key": "ป้องภพ", "title": "นาย", "name": "ป้องภพ พงษ์สุข"}, {"key": "อริษา", "title": "นาง", "name": "อริษา ทาทอง"}, {"key": "วราภรณ์", "title": "นางสาว", "name": "วราภรณ์ อินสม"}, {"key": "ณัฐศิธธาอัญญ์", "title": "นางสาว", "name": "ณัฐศิธธาอัญญ์ ฟูตระกูล"}]};
+
+const THAI_DAY_ABBR = {'จันทร์':'จ','อังคาร':'อ','พุธ':'พ','พฤหัสบดี':'พฤ','ศุกร์':'ศ','เสาร์':'ส','อาทิตย์':'อา'};
+const THAI_MONTHS = {'ม.ค.':1,'ก.พ.':2,'มี.ค.':3,'เม.ย.':4,'พ.ค.':5,'มิ.ย.':6,'ก.ค.':7,'ส.ค.':8,'ก.ย.':9,'ต.ค.':10,'พ.ย.':11,'ธ.ค.':12};
+
+function str(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
+function parseDate(s) {
+  s = String(s || '');
+  const m = s.match(/(\d{1,2})\s*([^\d\s]+)\s*(\d{2,4})?/);
+  if (!m) return null;
+  let y = m[3] ? parseInt(m[3], 10) : 0;
+  if (y > 0 && y < 100) y += 2500;
+  const mon = THAI_MONTHS[m[2]] || 0;
+  const dn = (s.split(/\d/)[0] || '').trim();
+  return { key: y * 10000 + mon * 100 + parseInt(m[1], 10),
+           label: (THAI_DAY_ABBR[dn] || dn) + ' ' + parseInt(m[1], 10) + ' ' + m[2].replace(/\./g, '') };
+}
+function parseStart(t) {
+  const m = String(t || '').match(/(\d{1,2})[.:](\d{2})/);
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 9999;
+}
+function slotSym(start) { return start < 600 ? 'ช' : (start < 780 ? 'ท' : 'บ'); }
+function splitNames(s) {
+  return String(s || '').split(/\s*[,，/\-–]\s*/).map(str).filter(Boolean);
+}
+
+// แปลงข้อมูลดิบจากชีต (schedule + people) เป็นข้อมูลที่หน้าเว็บใช้ (รายคน + ตารางสรุปภาพรวม)
+function buildData(raw) {
+  const sched = (raw.schedule || []).filter(r => r && str(r.course)).map(r => ({
+    date: str(r.date), time: str(r.time), course: str(r.course), room: str(r.room),
+    section: str(r.section), n: str(r.n), invig: str(r.invig), cat: str(r.cat),
+    _p: parseDate(r.date), _t: parseStart(r.time)
+  }));
+  sched.sort((a, b) => ((a._p ? a._p.key : 0) - (b._p ? b._p.key : 0)) || (a._t - b._t));
+
+  const info = {}, order = [];
+  (raw.people || []).forEach(p => {
+    const k = str(p.key);
+    if (!k || info[k]) return;
+    info[k] = { title: str(p.title), name: str(p.name) || k };
+    order.push(k);
+  });
+  const duties = {};
+  sched.forEach(r => {
+    const names = splitNames(r.invig);
+    names.forEach(n => {
+      if (!info[n]) { info[n] = { title: '', name: n }; order.push(n); }
+      (duties[n] = duties[n] || []).push({
+        date: r.date, time: r.time, course: r.course, room: r.room, section: r.section, n: r.n,
+        co: names.filter(x => x !== n).join(' / '), cat: r.cat, _p: r._p, _t: r._t
+      });
+    });
+  });
+  const slotId = d => (d._p ? d._p.key : d.date) + '|' + d._t;
+
+  const people = order.map(k => ({
+    key: k,
+    display: (info[k].title + ' ' + info[k].name).trim(),
+    count: new Set((duties[k] || []).map(slotId)).size,
+    duties: duties[k] || []
+  }));
+
+  const dayMap = {}, days = [];
+  sched.forEach(r => {
+    const id = r._p ? r._p.key : r.date;
+    if (!dayMap[id]) { dayMap[id] = true; days.push({ id: id, label: r._p ? r._p.label : r.date }); }
+  });
+  const rows = order.map(k => {
+    const ds = duties[k] || [];
+    const cells = days.map(dy => {
+      const starts = [...new Set(ds.filter(d => (d._p ? d._p.key : d.date) === dy.id).map(d => d._t))].sort((a, b) => a - b);
+      return [...new Set(starts.map(slotSym))].join('/');
+    });
+    return { key: k, title: info[k].title, name: info[k].name, days: cells,
+             total: String(new Set(ds.map(slotId)).size) };
+  });
+
+  return {
+    people: people,
+    schedule: sched.map(r => ({ date: r.date, time: r.time, course: r.course, room: r.room,
+                                section: r.section, n: r.n, invig: r.invig.replace(/\s*,\s*/g, ' – '), cat: r.cat })),
+    matrix: { days: days.map(d => d.label), rows: rows }
+  };
+}
+
+let DATA = buildData(SNAPSHOT);
+
+const els = {
+  search: document.getElementById('searchInput'),
+  suggestions: document.getElementById('suggestions'),
+  tabAll: document.getElementById('tabAll'),
+  tabAvail: document.getElementById('tabAvail'),
+  tabMine: document.getElementById('tabMine'),
+  personView: document.getElementById('personView'),
+  allView: document.getElementById('allView'),
+  availView: document.getElementById('availView'),
+};
+
+let selectedKey = null;
+
+function norm(s) { return (s || '').toLowerCase(); }
+
+function renderSuggestions(query) {
+  const q = norm(query).trim();
+  if (!q) { els.suggestions.classList.remove('open'); els.suggestions.innerHTML = ''; return; }
+  const matches = DATA.people.filter(p => norm(p.display).includes(q) || norm(p.key).includes(q));
+  if (matches.length === 0) {
+    els.suggestions.innerHTML = '<div class="sugg-empty">ไม่พบชื่อที่ตรงกับ "' + escapeHtml(query) + '"</div>';
+    els.suggestions.classList.add('open');
+    return;
+  }
+  els.suggestions.innerHTML = matches.slice(0, 8).map(p =>
+    '<button type="button" class="sugg-item" data-key="' + escapeAttr(p.key) + '">' +
+      '<span class="sugg-name">' + escapeHtml(p.display) + '</span>' +
+      '<span class="sugg-count">' + p.count + ' ครั้ง</span>' +
+    '</button>'
+  ).join('');
+  els.suggestions.classList.add('open');
+  els.suggestions.querySelectorAll('.sugg-item').forEach(btn => {
+    btn.addEventListener('click', () => selectPerson(btn.getAttribute('data-key')));
+  });
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+function selectPerson(key) {
+  const person = DATA.people.find(p => p.key === key);
+  if (!person) return;
+  selectedKey = key;
+  els.search.value = person.display;
+  els.suggestions.classList.remove('open');
+  try { localStorage.setItem('examSearchLastKey', key); } catch (e) {}
+  showPersonView(person);
+}
+
+function showPersonView(person) {
+  els.tabAll.classList.remove('active');
+  els.tabAvail.classList.remove('active');
+  els.tabMine.classList.add('active');
+  els.tabMine.disabled = false;
+  els.personView.style.display = 'block';
+  els.allView.style.display = 'none';
+  els.availView.style.display = 'none';
+
+  let html = '<div class="person-card">' +
+    '<h2>' + escapeHtml(person.display) + '</h2>' +
+    '<div class="stat">คุมสอบทั้งหมด <b>' + person.count + '</b> ครั้ง</div>' +
+    '<button type="button" class="clear-link" id="clearBtn">✕ ล้างการค้นหา / ดูทั้งหมด</button>' +
+  '</div>';
+
+  const groups = [];
+  person.duties.forEach(du => {
+    const k = (du._p ? du._p.key : du.date) + '|' + du._t;
+    let g = groups.find(x => x.k === k);
+    if (!g) { g = { k: k, date: du.date, time: du.time, items: [], co: [] }; groups.push(g); }
+    g.items.push(du);
+    (du.co || '').split('/').map(s => s.trim()).filter(Boolean).forEach(n => { if (g.co.indexOf(n) === -1) g.co.push(n); });
+  });
+  html += groups.map(g => {
+    const lines = g.items.map(du => {
+      const outside = du.cat.indexOf('นอก') !== -1;
+      const catTag = outside ? '<span class="cat-tag">นอกภาควิชา</span>' : '';
+      let meta = '<span class="duty-course">วิชา ' + escapeHtml(du.course) + catTag + '</span>' +
+        '<span>ห้อง <b>' + escapeHtml(du.room) + '</b></span>';
+      if (du.section) meta += '<span>ตอน <b>' + escapeHtml(du.section) + '</b></span>';
+      if (du.n) meta += '<span>นศ. <b>' + escapeHtml(du.n) + '</b></span>';
+      return '<div class="duty-meta duty-line">' + meta + '</div>';
+    }).join('');
+    return '<div class="duty-card">' +
+      '<div class="duty-top">' +
+        '<span class="duty-date">' + escapeHtml(g.date) + '</span>' +
+        '<span class="duty-time">' + escapeHtml(g.time) + ' น.</span>' +
+      '</div>' + lines +
+      (g.co.length ? '<div class="duty-co">คุมสอบร่วมกับ: ' + escapeHtml(g.co.join(', ')) + '</div>' : '') +
+    '</div>';
+  }).join('');
+
+  els.personView.innerHTML = html;
+  document.getElementById('clearBtn').addEventListener('click', resetToAll);
+}
+
+function renderAllView() {
+  let rows = '';
+  let lastDate = null;
+  DATA.schedule.forEach(r => {
+    const isNew = r.date !== lastDate;
+    lastDate = r.date;
+    rows += '<tr class="' + (isNew ? 'new-date' : '') + '">' +
+      '<td class="nowrap">' + escapeHtml(r.date) + '</td>' +
+      '<td class="nowrap">' + escapeHtml(r.time) + '</td>' +
+      '<td>' + escapeHtml(r.course) + '</td>' +
+      '<td>' + escapeHtml(r.room) + '</td>' +
+      '<td>' + escapeHtml(r.section) + '</td>' +
+      '<td>' + escapeHtml(r.n) + '</td>' +
+      '<td>' + escapeHtml(r.invig) + '</td>' +
+    '</tr>';
+  });
+  els.allView.innerHTML =
+    '<div class="section-label">ตารางสอบทั้งหมด ' + DATA.schedule.length + ' รายการ</div>' +
+    '<div class="all-table-wrap"><table class="all">' +
+    '<thead><tr><th>วันที่</th><th>เวลา</th><th>วิชา</th><th>ห้อง</th><th>ตอน</th><th>นศ.</th><th>กรรมการคุมสอบ</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+}
+
+function resetToAll() {
+  selectedKey = null;
+  els.search.value = '';
+  els.suggestions.classList.remove('open');
+  els.tabMine.classList.remove('active');
+  els.tabMine.disabled = true;
+  els.tabAvail.classList.remove('active');
+  els.tabAll.classList.add('active');
+  els.personView.style.display = 'none';
+  els.allView.style.display = 'block';
+  els.availView.style.display = 'none';
+  try { localStorage.removeItem('examSearchLastKey'); } catch (e) {}
+}
+
+function renderAvailView() {
+  const days = DATA.matrix.days;
+  let rows = DATA.matrix.rows.map(row => {
+    const cells = row.days.map(sym =>
+      sym ? '<td class="busy">' + escapeHtml(sym) + '</td>' : '<td class="free"></td>'
+    ).join('');
+    return '<tr>' +
+      '<td class="name-col" data-key="' + escapeAttr(row.key) + '">' + escapeHtml(row.title) + ' ' + escapeHtml(row.name) + '</td>' +
+      cells +
+      '<td class="total-col">' + escapeHtml(row.total) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  const dayHeaders = days.map(d => '<th>' + escapeHtml(d) + '</th>').join('');
+
+  els.availView.innerHTML =
+    '<div class="section-label">ตารางว่าง/ไม่ว่าง รายบุคคล — ช่องว่าง (เขียวอ่อน) = ไม่มีหน้าที่คุมสอบวันนั้น</div>' +
+    '<div class="matrix-wrap"><table class="matrix">' +
+    '<thead><tr><th class="name-col">ชื่อ-สกุล</th>' + dayHeaders + '<th>รวม</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>' +
+    '<p class="matrix-hint">ช = 08.00–11.00 น. &nbsp;·&nbsp; ท = 12.00–15.00 น. &nbsp;·&nbsp; บ = 15.30–18.30 น. &nbsp;·&nbsp; แตะชื่อเพื่อดูรายละเอียดของคนนั้น</p>';
+
+  els.availView.querySelectorAll('td.name-col').forEach(td => {
+    td.addEventListener('click', () => selectPerson(td.getAttribute('data-key')));
+  });
+}
+
+function showAvailView() {
+  els.tabAll.classList.remove('active');
+  els.tabMine.classList.remove('active');
+  els.tabAvail.classList.add('active');
+  els.personView.style.display = 'none';
+  els.allView.style.display = 'none';
+  els.availView.style.display = 'block';
+}
+
+els.search.addEventListener('input', (e) => renderSuggestions(e.target.value));
+els.search.addEventListener('focus', (e) => { if (e.target.value) renderSuggestions(e.target.value); });
+document.addEventListener('click', (e) => {
+  if (!els.search.contains(e.target) && !els.suggestions.contains(e.target)) {
+    els.suggestions.classList.remove('open');
+  }
+});
+els.tabAll.addEventListener('click', resetToAll);
+els.tabAvail.addEventListener('click', showAvailView);
+els.tabMine.addEventListener('click', () => {
+  if (selectedKey) {
+    const p = DATA.people.find(p => p.key === selectedKey);
+    if (p) showPersonView(p);
+  }
+});
+
+function setStatus(t) { document.getElementById('dataStatus').textContent = t; }
+
+function refreshAll() {
+  renderAllView();
+  renderAvailView();
+  if (selectedKey) {
+    const p = DATA.people.find(x => x.key === selectedKey);
+    if (p) showPersonView(p); else resetToAll();
+  }
+}
+
+async function loadLive() {
+  if (!CONFIG.API_URL) { setStatus('แสดงข้อมูลที่ฝังไว้ในหน้าเว็บ (ยังไม่ได้เชื่อม Google Sheet)'); return; }
+  try {
+    const res = await fetch(CONFIG.API_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.json();
+    if (!raw || !Array.isArray(raw.schedule) || !Array.isArray(raw.people) || raw.schedule.length === 0) throw new Error('bad data');
+    DATA = buildData(raw);
+    try { localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(raw)); } catch (e) {}
+    refreshAll();
+    const t = raw.updated ? new Date(raw.updated) : new Date();
+    setStatus('ข้อมูลจาก Google Sheet · ดึงล่าสุด ' + t.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }));
+  } catch (e) {
+    setStatus('เชื่อมต่อ Google Sheet ไม่ได้ ใช้ข้อมูลล่าสุดที่บันทึกไว้แทน');
+  }
+}
+
+// ใช้ข้อมูลที่เคยดึงไว้ก่อน (แสดงผลทันที) แล้วค่อยดึงข้อมูลใหม่
+try {
+  const cached = localStorage.getItem(CONFIG.CACHE_KEY);
+  if (cached && CONFIG.API_URL) DATA = buildData(JSON.parse(cached));
+} catch (e) {}
+
+renderAllView();
+renderAvailView();
+
+// restore last search if present
+try {
+  const lastKey = localStorage.getItem('examSearchLastKey');
+  if (lastKey && DATA.people.some(p => p.key === lastKey)) {
+    selectPerson(lastKey);
+  }
+} catch (e) {}
+
+loadLive();
+</script>
+</body>
+</html>
